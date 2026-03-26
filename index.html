@@ -1,0 +1,1634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Coursera Audio Player</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --blue-bg: #f1f6ff;
+      --blue-accent: #0056d2;
+      --blue-border: #adcfff;
+      --blue-shadow: #c3d7fc;
+      --blue-chip: #d7e4fb;
+      --text-primary: #0f1114;
+      --text-secondary: #404b61;
+      --text-tertiary: #597eb4;
+      --text-muted: #5b6780;
+      --goal-orange: #c74504;
+      --highlight-blue: #c3d7fc;
+      --border-subtle: rgba(0,0,0,0.16);
+      --border-light: #e8eef7;
+      --separator: rgba(0,0,0,0.12);
+      --pill-bg: #f2f5fa;
+      --white: #ffffff;
+      --black: #000000;
+      --font-main: 'Source Sans 3', 'Source Sans Pro', sans-serif;
+      --font-system: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+    }
+    body {
+      background: #e5e5e5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: var(--font-main);
+      overflow: hidden;
+    }
+
+    .app-frame {
+      width: 393px;
+      height: 852px;
+      position: relative;
+      overflow: hidden;
+      border-radius: 20px;
+      background: var(--white);
+      box-shadow: 0 0 40px rgba(0,0,0,0.15);
+      flex-shrink: 0;
+    }
+
+    @media screen and (max-width: 393px) {
+      body {
+        background: var(--white);
+        align-items: flex-start;
+      }
+      .app-frame {
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh;
+        border-radius: 0;
+        box-shadow: none;
+      }
+    }
+
+    /* ---- Screen transitions ---- */
+    .screen {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease;
+      will-change: transform, opacity;
+    }
+    .screen.off-right { transform: translateX(100%); opacity: 1; }
+    .screen.off-left { transform: translateX(-30%); opacity: 0.5; }
+    .screen.active { transform: translateX(0); opacity: 1; }
+
+    /* ---- Status bar ---- */
+    .status-bar {
+      height: 56px;
+      padding: 14px 24px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .status-bar .time {
+      font-family: -apple-system, 'SF Pro Text', sans-serif;
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: -0.2px;
+    }
+    .status-bar .icons { display: flex; gap: 6px; align-items: center; }
+    .status-bar .icons svg { width: 18px; height: 18px; }
+
+    /* ---- SVG icon helpers ---- */
+    .icon-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    /* ================================================
+       SCREEN 1: Course Dashboard
+       ================================================ */
+    #screen1 {
+      background: var(--white);
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    #screen1::-webkit-scrollbar { display: none; }
+
+    .s1-status-bar {
+      background: var(--blue-bg);
+      height: 54px;
+      padding: 16px 24px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .s1-header {
+      background: var(--blue-bg);
+      box-shadow: 0 1px 0 0 var(--blue-shadow);
+      padding: 0 0 24px 0;
+    }
+    .s1-header-nav {
+      height: 44px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 4px 16px 0;
+    }
+    .s1-header-info { flex: 1; }
+    .s1-header-info .subtitle {
+      font-weight: 600;
+      font-size: 13px;
+      line-height: 13px;
+      opacity: 0.6;
+      color: var(--black);
+    }
+    .s1-header-info .title {
+      font-weight: 600;
+      font-size: 15px;
+      line-height: 21px;
+      color: var(--black);
+      margin-top: 8px;
+    }
+
+    .s1-options {
+      display: flex;
+      gap: 16px;
+      padding: 0 24px;
+    }
+    .s1-option-btn {
+      background: var(--blue-bg);
+      border: 1px solid var(--blue-border);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px 8px 8px;
+      cursor: pointer;
+      height: 48px;
+    }
+    .s1-option-icon {
+      background: var(--blue-chip);
+      border-radius: 50px;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .s1-option-text .label {
+      font-weight: 600;
+      font-size: 15px;
+      line-height: 15px;
+      color: var(--text-secondary);
+    }
+    .s1-option-text .sub {
+      font-weight: 600;
+      font-size: 13px;
+      line-height: 13px;
+      color: var(--text-tertiary);
+      margin-top: 4px;
+    }
+
+    .s1-duration-pill {
+      margin: 12px 16px;
+      background: var(--pill-bg);
+      border-radius: 18px;
+      height: 27px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+
+    .s1-goal-card {
+      margin: 0 16px 16px;
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 16px;
+      background: var(--white);
+    }
+    .s1-goal-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .s1-goal-label {
+      font-weight: 600;
+      font-size: 14px;
+      line-height: 18px;
+      letter-spacing: -0.042px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .s1-goal-xp {
+      margin-left: auto;
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--goal-orange);
+    }
+    .s1-goal-text {
+      font-size: 16px;
+      line-height: 24px;
+      color: var(--text-primary);
+    }
+
+    .s1-section-divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 16px 16px 12px;
+    }
+    .s1-section-divider .line {
+      flex: 1;
+      height: 1px;
+      background: var(--black);
+      opacity: 0.12;
+    }
+    .s1-section-divider .text {
+      font-weight: 600;
+      font-size: 13px;
+      line-height: 13px;
+      color: var(--black);
+      white-space: nowrap;
+    }
+    .s1-section-divider .text.muted { opacity: 0.6; }
+
+    .s1-lesson-card {
+      margin: 0 16px 12px;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 16px;
+      background: var(--white);
+    }
+    .s1-lesson-card.elevated {
+      box-shadow: 0 3px 6px rgba(0,0,0,0.08);
+    }
+    .s1-lesson-title {
+      font-weight: 700;
+      font-size: 15px;
+      line-height: 22px;
+      color: var(--black);
+      opacity: 0.87;
+      margin-bottom: 12px;
+    }
+    .s1-lesson-tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .s1-tag {
+      border: 1px solid #dbdbdb;
+      border-radius: 4px;
+      padding: 4px 8px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      font-size: 13px;
+      line-height: 13px;
+      color: var(--black);
+      white-space: nowrap;
+    }
+    .s1-play-btn {
+      background: var(--blue-accent);
+      border: none;
+      border-radius: 4px;
+      padding: 4px 8px;
+      height: 28px;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--white);
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      box-shadow: 0 3px 12px rgba(135,134,250,0.16);
+      transition: opacity 0.15s;
+    }
+    .s1-play-btn:active { opacity: 0.8; }
+
+    .s1-bottom-bar {
+      height: 21px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      padding-bottom: 8px;
+    }
+    .swipe-indicator {
+      width: 139px;
+      height: 5px;
+      background: var(--black);
+      border-radius: 10px;
+    }
+    .swipe-indicator.white { background: var(--white); }
+
+    /* ================================================
+       SCREEN 2: Audio Player
+       ================================================ */
+    #screen2 {
+      background: var(--blue-bg);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .s2-status-bar {
+      background: var(--blue-bg);
+      height: 54px;
+      padding: 16px 24px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .s2-header {
+      height: 44px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      position: relative;
+      box-shadow: 0 1px 0 0 var(--blue-shadow);
+      flex-shrink: 0;
+    }
+    .s2-header-title {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      font-weight: 700;
+      font-size: 15px;
+      line-height: 15px;
+      color: var(--black);
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
+
+    .s2-transcript {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 34px;
+      overflow: hidden;
+    }
+    .s2-transcript-text {
+      font-weight: 700;
+      font-size: 24px;
+      line-height: 32px;
+      letter-spacing: 0.072px;
+      color: var(--black);
+      text-align: left;
+      width: 325px;
+    }
+    .s2-transcript-text .highlight {
+      background: var(--highlight-blue);
+      padding: 2px 4px;
+      margin: 0 -2px;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+    .s2-transcript-text .faded {
+      color: #052f7c;
+      opacity: 0.32;
+    }
+
+    .s2-bottom-panel {
+      background: var(--white);
+      padding: 16px 0 0;
+      box-shadow: 0 -1px 0 0 var(--blue-shadow);
+      flex-shrink: 0;
+    }
+
+    /* --- Top action bar: Coach | EQ | Voice --- */
+    .s2-action-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 20px;
+      margin-bottom: 16px;
+    }
+    .s2-coach-btn {
+      background: var(--blue-bg);
+      border: 1px solid var(--blue-border);
+      border-radius: 8px;
+      height: 44px;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .s2-coach-icon-wrap {
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+      position: relative;
+    }
+    .s2-coach-icon-wrap svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .s2-coach-label {
+      width: 48px;
+      height: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .s2-coach-label svg {
+      width: 46px;
+      height: 11.14px;
+      display: block;
+    }
+
+    .s2-eq-btn {
+      background: var(--blue-bg);
+      border: 1px solid var(--blue-border);
+      border-radius: 8px;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .s2-eq-btn svg {
+      width: 24px;
+      height: 24px;
+      display: block;
+      flex-shrink: 0;
+    }
+
+    .s2-voice-btn {
+      background: var(--blue-bg);
+      border: 1px solid var(--blue-border);
+      border-radius: 8px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 16px 0 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+      flex-shrink: 1;
+      min-width: 0;
+    }
+    .s2-voice-btn:active { background: #e4edfd; }
+    .s2-voice-icon {
+      background: var(--blue-chip);
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .s2-voice-icon svg {
+      width: 20px;
+      height: 20px;
+      display: block;
+      flex-shrink: 0;
+    }
+    .s2-voice-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: flex-start;
+    }
+    .s2-voice-info .label {
+      font-weight: 600;
+      font-size: 15px;
+      line-height: 15px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+    .s2-voice-info .sub {
+      font-weight: 600;
+      font-size: 13px;
+      line-height: 13px;
+      color: var(--text-tertiary);
+      white-space: nowrap;
+    }
+
+    /* --- Track info --- */
+    .s2-track-info {
+      padding: 8px 16px;
+    }
+    .s2-track-title {
+      font-weight: 700;
+      font-size: 18px;
+      line-height: 18px;
+      color: var(--black);
+    }
+    .s2-track-subtitle {
+      font-weight: 600;
+      font-size: 13px;
+      line-height: 13px;
+      color: var(--black);
+      opacity: 0.6;
+      margin-top: 8px;
+    }
+
+    /* --- Progress bar --- */
+    .s2-progress-area {
+      padding: 16px 16px 0;
+    }
+    .s2-progress-bar-container {
+      display: flex;
+      align-items: center;
+      height: 16px;
+      cursor: pointer;
+    }
+    .s2-progress-track {
+      flex: 1;
+      height: 6px;
+      background: #dce5f2;
+      border-radius: 3px;
+      position: relative;
+      overflow: hidden;
+    }
+    .s2-progress-fill {
+      height: 100%;
+      background: var(--blue-accent);
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.3s linear;
+    }
+    .s2-time-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+      font-weight: 600;
+      font-size: 15px;
+      line-height: 15px;
+      color: var(--black);
+    }
+
+    /* --- Playback controls: Speed · Rew · Pause · Fwd · Timer (flat, 40px gap) --- */
+    .s2-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 40px;
+      padding: 24px 0;
+    }
+    .s2-speed-btn {
+      font-family: var(--font-main);
+      font-weight: 700;
+      font-size: 18px;
+      line-height: 18px;
+      color: var(--black);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      white-space: nowrap;
+      flex-shrink: 0;
+      width: 35px;
+      text-align: left;
+    }
+    .s2-control-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      flex-shrink: 0;
+      transition: transform 0.1s;
+    }
+    .s2-control-btn:active { transform: scale(0.9); }
+    .s2-control-btn svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    .s2-timer-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+    }
+    .s2-timer-btn svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .s2-swipe-bar {
+      height: 21px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      padding-bottom: 8px;
+    }
+
+    /* ================================================
+       SCREEN 3: Voice Selection Bottom Sheet
+       ================================================ */
+    .voice-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 100;
+      pointer-events: none;
+    }
+    .voice-overlay.active {
+      pointer-events: auto;
+    }
+    .voice-overlay-bg {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .voice-overlay.active .voice-overlay-bg {
+      opacity: 1;
+    }
+
+    .voice-sheet {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--white);
+      border-radius: 16px 16px 0 0;
+      transform: translateY(100%);
+      transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      height: 750px;
+      max-height: 88%;
+      display: flex;
+      flex-direction: column;
+      font-family: var(--font-system);
+      backdrop-filter: blur(40px);
+      -webkit-backdrop-filter: blur(40px);
+    }
+    .voice-overlay.active .voice-sheet {
+      transform: translateY(0);
+    }
+
+    .vs-header {
+      display: flex;
+      align-items: center;
+      padding: 16px;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .vs-back-btn {
+      position: absolute;
+      left: 14px;
+      top: 12px;
+      width: 28px;
+      height: 28px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .vs-title {
+      flex: 1;
+      text-align: center;
+      font-weight: 500;
+      font-size: 16px;
+      line-height: 20px;
+      color: var(--text-primary);
+    }
+
+    .vs-tabs-row {
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      border-bottom: 1px solid rgba(0,0,0,0.08);
+    }
+    .vs-tabs {
+      display: flex;
+      gap: 12px;
+      flex: 1;
+    }
+    .vs-tab {
+      padding: 16px 0;
+      font-weight: 500;
+      font-size: 14px;
+      line-height: 17px;
+      color: #797979;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+      transition: color 0.2s;
+    }
+    .vs-tab.active {
+      color: var(--text-primary);
+      border-bottom-color: #616161;
+    }
+    .vs-sort-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 500;
+      font-size: 14px;
+      color: var(--text-primary);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 10px;
+    }
+
+    .vs-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 8px 0;
+    }
+    .vs-list::-webkit-scrollbar { display: none; }
+
+    .vs-voice-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px;
+      border-radius: 12px;
+      height: 64px;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-bottom: 4px;
+    }
+    .vs-voice-item:active { background: rgba(0,0,0,0.04); }
+    .vs-voice-item.selected { background: #eef3ff; }
+
+    .vs-voice-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+    }
+    .vs-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+    }
+    .vs-avatar.auto-select { background: linear-gradient(135deg, #e8e0d6 0%, #c9bfb3 100%); }
+    .vs-avatar.mike { background: linear-gradient(135deg, #f0a67a 0%, #e8825a 100%); }
+    .vs-avatar.mara { background: linear-gradient(135deg, #b8d4a8 0%, #8fb87a 100%); }
+    .vs-avatar.daniel { background: linear-gradient(135deg, #8ec5d4 0%, #6aa8bf 100%); }
+    .vs-avatar.emma { background: linear-gradient(135deg, #d4a8d4 0%, #bf8abf 100%); }
+
+    .vs-avatar svg { position: relative; z-index: 1; }
+    .vs-avatar.playing svg.play-icon { display: none; }
+    .vs-avatar.playing svg.pause-icon { display: block; }
+    .vs-avatar:not(.playing) svg.play-icon { display: block; }
+    .vs-avatar:not(.playing) svg.pause-icon { display: none; }
+
+    .vs-voice-meta { flex: 1; min-width: 0; }
+    .vs-voice-name-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .vs-voice-name {
+      font-weight: 500;
+      font-size: 14px;
+      line-height: 17px;
+      color: var(--text-primary);
+    }
+    .vs-badge {
+      background: rgba(0,0,0,0.06);
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-weight: 500;
+      font-size: 12px;
+      line-height: 15px;
+      color: var(--text-primary);
+    }
+    .vs-voice-desc {
+      font-weight: 400;
+      font-size: 12px;
+      line-height: 19px;
+      color: var(--text-primary);
+    }
+
+    .vs-voice-right {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .vs-lang {
+      font-weight: 400;
+      font-size: 12px;
+      line-height: 19px;
+      color: var(--text-primary);
+    }
+    .vs-more-btn {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: none;
+      cursor: pointer;
+      border-radius: 10px;
+    }
+
+    .vs-apply-area {
+      padding: 16px;
+      flex-shrink: 0;
+    }
+    .vs-apply-btn {
+      width: 100%;
+      height: 38px;
+      background: var(--blue-accent);
+      border: none;
+      border-radius: 10px;
+      color: var(--white);
+      font-weight: 500;
+      font-size: 14px;
+      line-height: 17px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .vs-apply-btn:active { opacity: 0.85; }
+
+    .vs-bottom-pad { height: 40px; flex-shrink: 0; }
+
+    /* Selected checkmark */
+    .vs-check {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--blue-accent);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-left: 4px;
+    }
+    .vs-voice-item.selected .vs-check { display: flex; }
+  </style>
+</head>
+<body>
+  <div class="app-frame" id="app">
+
+    <!-- ============================================
+         SCREEN 1: Course Lesson List
+         ============================================ -->
+    <div id="screen1" class="screen active">
+      <!-- Status Bar -->
+      <div class="s1-status-bar" style="background:var(--blue-bg)">
+        <span class="time" style="font-family:-apple-system,'SF Pro Text',sans-serif;font-weight:700;font-size:16px;letter-spacing:-0.2px">9:41</span>
+        <div class="icons" style="display:flex;gap:5px;align-items:center">
+          <svg width="17" height="12" fill="none"><rect x="0" y="8" width="3" height="4" rx="0.5" fill="#000" opacity=".2"/><rect x="4.5" y="5" width="3" height="7" rx="0.5" fill="#000" opacity=".2"/><rect x="9" y="2.5" width="3" height="9.5" rx="0.5" fill="#000"/><rect x="13.5" y="0" width="3" height="12" rx="0.5" fill="#000"/></svg>
+          <svg width="16" height="12" fill="none"><path d="M8 2.4c2.3 0 4.4.9 5.9 2.4l1.4-1.4C13.2 1.3 10.7.2 8 .2S2.8 1.3.7 3.4l1.4 1.4C3.6 3.3 5.7 2.4 8 2.4zm0 4c1.3 0 2.5.5 3.4 1.4l1.4-1.4c-1.3-1.2-3-2-4.8-2s-3.5.8-4.8 2l1.4 1.4c.9-.9 2.1-1.4 3.4-1.4zM8 10l2-2.5c-.5-.5-1.2-.7-2-.7s-1.5.2-2 .7L8 10z" fill="#000"/></svg>
+          <svg width="27" height="13" fill="none"><rect x="0" y="0" width="22" height="12" rx="2" stroke="#000" stroke-opacity=".35"/><rect x="1.5" y="1.5" width="19" height="9" rx="1" fill="#000"/><rect x="23" y="3.5" width="2.5" height="5" rx="1" fill="#000" opacity=".35"/></svg>
+        </div>
+      </div>
+
+      <!-- Header -->
+      <div class="s1-header">
+        <div class="s1-header-nav">
+          <button class="icon-btn" style="width:28px;height:28px">
+            <svg width="28" height="28" fill="none"><path d="M17.5 7.5l-7 6.5 7 6.5" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="s1-header-info">
+            <div class="subtitle">Google</div>
+            <div class="title">Foundations Data, Data Everywhere</div>
+          </div>
+        </div>
+        <div class="s1-options">
+          <div class="s1-option-btn" style="gap:8px;padding:8px 16px 8px 8px">
+            <div style="width:18px;height:18px;display:flex;align-items:center;justify-content:center">
+              <svg width="16" height="16" fill="none"><path d="M8 1l1.8 3.3L14 5.2l-3 2.8.7 4L8 10.3 4.3 12l.7-4-3-2.8 4.2-.9L8 1z" fill="#4285f4"/></svg>
+            </div>
+            <span style="font-weight:600;font-size:15px;color:var(--text-secondary)">Personalized path</span>
+            <svg width="20" height="20" fill="none"><path d="M6.5 8l3.5 3.5L13.5 8" stroke="#404b61" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="s1-option-btn">
+            <div class="s1-option-icon">
+              <svg width="20" height="20" fill="none"><path d="M10 4c-2.2 0-4 1.5-4 3.5V10h-.5c-.8 0-1.5.7-1.5 1.5v3c0 .8.7 1.5 1.5 1.5h2c.6 0 1-.4 1-1v-4c0-.6-.4-1-1-1H6V7.5C6 6.1 7.8 5 10 5s4 1.1 4 2.5V10h-1.5c-.6 0-1 .4-1 1v4c0 .6.4 1 1 1h2c.8 0 1.5-.7 1.5-1.5v-3c0-.8-.7-1.5-1.5-1.5H14V7.5c0-2-1.8-3.5-4-3.5z" fill="var(--blue-accent)"/></svg>
+            </div>
+            <div class="s1-option-text">
+              <div class="label">Audio Focus</div>
+              <div class="sub">On</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Duration Pill -->
+      <div class="s1-duration-pill">
+        <span>30min</span>
+        <svg width="18" height="18" fill="none"><path d="M7 8l2.5 2 2.5-2" stroke="#0f1114" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+
+      <!-- Today's Goal -->
+      <div class="s1-goal-card">
+        <div class="s1-goal-header">
+          <div class="s1-goal-label">
+            <svg width="16" height="16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="var(--text-muted)" stroke-width="1"/><circle cx="8" cy="8" r="3" fill="var(--text-muted)"/></svg>
+            TODAY'S GOAL
+          </div>
+          <span style="font-size:20px">🔥</span>
+          <span class="s1-goal-xp">30 /60XP</span>
+        </div>
+        <div class="s1-goal-text">Understand HTML advanced concepts and be able to build a HTML webpage.</div>
+      </div>
+
+      <!-- Next Up Lesson -->
+      <div class="s1-section-divider">
+        <div class="line"></div>
+        <div class="text">Next Up Lesson</div>
+        <div class="line"></div>
+      </div>
+
+      <div class="s1-lesson-card">
+        <div class="s1-lesson-title">The ins and outs of core data tools</div>
+        <div class="s1-lesson-tags">
+          <div class="s1-tag">
+            <svg width="20" height="20" fill="none"><path d="M8 5v10l7-5-7-5z" fill="#000"/></svg>
+            Video - Audio mode
+          </div>
+          <div class="s1-tag">7 min</div>
+          <button class="s1-play-btn" id="playBtn">Play</button>
+        </div>
+      </div>
+
+      <!-- Up After -->
+      <div class="s1-section-divider">
+        <div class="line"></div>
+        <div class="text">Up After</div>
+        <div class="line"></div>
+      </div>
+
+      <div class="s1-lesson-card">
+        <div class="s1-lesson-title">SQL in action</div>
+        <div class="s1-lesson-tags">
+          <div class="s1-tag">
+            <svg width="20" height="20" fill="none"><path d="M8 5v10l7-5-7-5z" fill="#000"/></svg>
+            Reading - Audio mode
+          </div>
+          <div class="s1-tag">6 min</div>
+        </div>
+      </div>
+
+      <div class="s1-section-divider">
+        <div class="line"></div>
+        <div class="text muted">Skipping Practice Quiz</div>
+        <div class="line"></div>
+      </div>
+
+      <div class="s1-lesson-card">
+        <div class="s1-lesson-title">Make spreadsheets your friend</div>
+        <div class="s1-lesson-tags">
+          <div class="s1-tag">
+            <svg width="20" height="20" fill="none"><path d="M8 5v10l7-5-7-5z" fill="#000"/></svg>
+            Video - Audio mode
+          </div>
+          <div class="s1-tag">6 min</div>
+        </div>
+      </div>
+
+      <div class="s1-section-divider">
+        <div class="line"></div>
+        <div class="text muted">Skipping Practice</div>
+        <div class="line"></div>
+      </div>
+
+      <div class="s1-lesson-card elevated">
+        <div class="s1-lesson-title">Angie: Everyday struggles when learning new skills</div>
+        <div class="s1-lesson-tags">
+          <div class="s1-tag">
+            <svg width="20" height="20" fill="none"><path d="M8 5v10l7-5-7-5z" fill="#000"/></svg>
+            Video - Audio mode
+          </div>
+          <div class="s1-tag">6 min</div>
+        </div>
+      </div>
+
+      <div class="s1-lesson-card elevated">
+        <div class="s1-lesson-title">Become a data vis whiz</div>
+        <div class="s1-lesson-tags">
+          <div class="s1-tag">
+            <svg width="20" height="20" fill="none"><path d="M8 5v10l7-5-7-5z" fill="#000"/></svg>
+            Video - Audio mode
+          </div>
+          <div class="s1-tag">6 min</div>
+        </div>
+      </div>
+
+      <div style="height:40px"></div>
+
+      <div style="position:sticky;bottom:0;background:white;box-shadow:0 -1px 0 rgba(0,0,0,0.08)">
+        <div class="s1-bottom-bar">
+          <div class="swipe-indicator"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================
+         SCREEN 2: Audio Player
+         ============================================ -->
+    <div id="screen2" class="screen off-right">
+      <!-- Status Bar -->
+      <div class="s2-status-bar">
+        <span class="time" style="font-family:-apple-system,'SF Pro Text',sans-serif;font-weight:600;font-size:17px;letter-spacing:-0.2px">9:41</span>
+        <div class="icons" style="display:flex;gap:5px;align-items:center">
+          <svg width="17" height="12" fill="none"><rect x="0" y="8" width="3" height="4" rx="0.5" fill="#000" opacity=".2"/><rect x="4.5" y="5" width="3" height="7" rx="0.5" fill="#000" opacity=".2"/><rect x="9" y="2.5" width="3" height="9.5" rx="0.5" fill="#000"/><rect x="13.5" y="0" width="3" height="12" rx="0.5" fill="#000"/></svg>
+          <svg width="16" height="12" fill="none"><path d="M8 2.4c2.3 0 4.4.9 5.9 2.4l1.4-1.4C13.2 1.3 10.7.2 8 .2S2.8 1.3.7 3.4l1.4 1.4C3.6 3.3 5.7 2.4 8 2.4zm0 4c1.3 0 2.5.5 3.4 1.4l1.4-1.4c-1.3-1.2-3-2-4.8-2s-3.5.8-4.8 2l1.4 1.4c.9-.9 2.1-1.4 3.4-1.4zM8 10l2-2.5c-.5-.5-1.2-.7-2-.7s-1.5.2-2 .7L8 10z" fill="#000"/></svg>
+          <svg width="27" height="13" fill="none"><rect x="0" y="0" width="22" height="12" rx="2" stroke="#000" stroke-opacity=".35"/><rect x="1.5" y="1.5" width="19" height="9" rx="1" fill="#000"/><rect x="23" y="3.5" width="2.5" height="5" rx="1" fill="#000" opacity=".35"/></svg>
+        </div>
+      </div>
+
+      <!-- Header -->
+      <div class="s2-header">
+        <button class="icon-btn" id="backToScreen1" style="width:28px;height:28px">
+          <svg width="28" height="28" fill="none"><path d="M17.5 7.5l-7 6.5 7 6.5" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span class="s2-header-title">Video - Audio focus</span>
+      </div>
+
+      <!-- Transcript Area -->
+      <div class="s2-transcript">
+        <div class="s2-transcript-text" id="transcriptArea">
+          <span id="transcriptActive">We'll start </span><span class="highlight" id="transcriptHighlight">with a closer look</span> <span class="faded" id="transcriptFaded">at this example spreadsheet.</span>
+        </div>
+      </div>
+
+      <!-- Bottom Panel -->
+      <div class="s2-bottom-panel">
+        <!-- Action Buttons -->
+        <div class="s2-action-bar">
+          <div class="s2-coach-btn">
+            <div class="s2-coach-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3.55673 0.297812C3.71885 -0.0992702 4.28115 -0.0992708 4.44327 0.297811L5.1346 1.9911C5.29672 2.38817 5.61183 2.70328 6.0089 2.8654L7.70219 3.55673C8.09927 3.71885 8.09927 4.28115 7.70219 4.44327L6.0089 5.1346C5.61183 5.29672 5.29672 5.61183 5.1346 6.0089L4.44327 7.70219C4.28115 8.09927 3.71885 8.09927 3.55673 7.70219L2.8654 6.0089C2.70328 5.61183 2.38817 5.29672 1.9911 5.1346L0.297812 4.44327C-0.0992702 4.28115 -0.0992708 3.71885 0.297811 3.55673L1.9911 2.8654C2.38817 2.70328 2.70328 2.38817 2.8654 1.9911L3.55673 0.297812Z" fill="url(#sparkleGradS)"/><g transform="translate(2, 2)"><path d="M10.2374 0.512348C10.5163 -0.170784 11.4837 -0.170782 11.7626 0.512349L13.2738 4.2138C14.1105 6.26315 15.7369 7.88948 17.7862 8.72618L21.4877 10.2374C22.1708 10.5163 22.1708 11.4837 21.4876 11.7626L17.7862 13.2738C15.7369 14.1105 14.1105 15.7369 13.2738 17.7862L11.7626 21.4877C11.4837 22.1708 10.5163 22.1708 10.2374 21.4876L8.72618 17.7862C7.88948 15.7368 6.26315 14.1105 4.2138 13.2738L0.512348 11.7626C-0.170784 11.4837 -0.170782 10.5163 0.512349 10.2374L4.21381 8.72618C6.26315 7.88948 7.88948 6.26315 8.72618 4.2138L10.2374 0.512348Z" fill="url(#sparkleGradL)"/></g><defs><radialGradient id="sparkleGradS" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(-0.1875 -0.1875) rotate(45) scale(11.5789 10.5354)"><stop stop-color="#6923DE"/><stop offset="1" stop-color="#3286FF"/></radialGradient><radialGradient id="sparkleGradL" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(-0.515626 -0.515626) rotate(45) scale(31.8419 28.9724)"><stop stop-color="#6923DE"/><stop offset="1" stop-color="#3286FF"/></radialGradient></defs></svg>
+            </div>
+            <div class="s2-coach-label">
+              <svg viewBox="0 0 46 11.14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M24.7311 3.0727C25.1368 3.07273 25.5162 3.11189 25.8678 3.18891C26.2193 3.26673 26.5459 3.38833 26.8463 3.5561C27.1453 3.72239 27.4031 3.93008 27.6158 4.17719C27.8293 4.42276 27.9946 4.72702 28.1158 5.0854C28.2363 5.44379 28.2965 5.84574 28.2965 6.2895C28.2959 6.31567 28.2326 9.09223 28.2242 10.5629C28.2227 10.7574 28.0744 10.9137 27.8815 10.9389C27.8264 10.9462 27.7583 10.9496 27.691 10.9506H26.8375C26.5349 10.9505 26.3845 10.6271 26.3844 10.3442V10.2749C25.6911 10.8506 24.9298 11.141 24.0055 11.1411C23.0809 11.1411 22.3348 10.9151 21.7672 10.4604C21.1997 10.0073 20.9166 9.41074 20.9166 8.67231C20.9167 7.88976 21.2258 7.2594 21.8444 6.78266C22.463 6.30588 23.2789 6.06783 24.2897 6.06782C24.9731 6.06782 25.6551 6.20518 26.3385 6.47895V6.06782C26.3384 5.62396 26.1823 5.27148 25.8727 5.01216C25.563 4.75287 25.1359 4.62354 24.5914 4.62348C23.8514 4.62348 23.1778 4.8214 22.5729 5.22114C22.2512 5.40932 21.986 5.33803 21.7809 5.00434L21.6422 4.76411C21.4225 4.40022 21.478 4.11751 21.8121 3.91841C22.6749 3.35393 23.6471 3.0727 24.7311 3.0727ZM15.7946 3.0727C17.0372 3.07271 18.0646 3.45768 18.8785 4.22505C19.6924 4.99392 20.1001 5.95341 20.1002 7.10591C20.1002 8.2586 19.6925 9.22029 18.8785 9.98774C18.0646 10.7566 17.0372 11.1401 15.7946 11.1401C14.5519 11.1401 13.5221 10.7567 12.7028 9.98774C11.8842 9.21877 11.4742 8.2586 11.4742 7.10591C11.4744 5.95341 11.8835 4.99392 12.7028 4.22505C13.5221 3.45611 14.5519 3.0727 15.7946 3.0727ZM33.86 3.0727C35.0865 3.0727 36.1217 3.46653 36.9479 4.25434C37.1943 4.49388 37.1943 4.73431 36.9479 4.97309L36.3942 5.51118C36.1585 5.72622 35.9062 5.72077 35.6393 5.49653C35.151 5.05788 34.5776 4.83833 33.9215 4.83833C33.2656 4.83841 32.7332 5.05399 32.3121 5.48188C31.892 5.91133 31.6813 6.45226 31.6813 7.10591C31.6813 7.75955 31.8872 8.3005 32.3014 8.72993C32.7141 9.15942 33.2544 9.37251 33.9235 9.37251C34.5925 9.3725 35.1375 9.15272 35.6403 8.71333C35.9073 8.47379 36.1596 8.46927 36.3961 8.69966L36.9498 9.23774C37.1908 9.47187 37.1907 9.70674 36.9498 9.94087C36.129 10.738 35.0992 11.1381 33.8619 11.1381C33.0556 11.1381 32.3257 10.9623 31.6735 10.6098C31.0214 10.2574 30.5136 9.77625 30.149 9.16157C29.7836 8.54898 29.6022 7.86225 29.6022 7.10395C29.6022 5.94597 30.0048 4.98453 30.8112 4.22016C31.6174 3.45443 32.6335 3.07273 33.86 3.0727ZM6.3551 0.0570771C7.18511 0.0570771 7.96381 0.206395 8.69006 0.50239C9.4162 0.798377 10.0398 1.21531 10.5631 1.74848C10.7168 1.89854 10.7878 2.05241 10.778 2.21235C10.7665 2.37252 10.6807 2.51359 10.5221 2.63716L9.92053 3.14301C9.61846 3.37334 9.30656 3.35507 8.98694 3.09419C8.24474 2.40553 7.37265 2.06098 6.37268 2.06098C5.37267 2.06104 4.50333 2.39548 3.81604 3.06294C3.12887 3.73034 2.78489 4.57124 2.78479 5.58637C2.78479 6.60176 3.12869 7.44511 3.81604 8.11567C4.50331 8.78611 5.35442 9.12147 6.37268 9.12153C7.39106 9.12153 8.26071 8.77614 8.98694 8.08735C9.30582 7.80967 9.61691 7.79462 9.92053 8.0395L10.5221 8.52876C10.6807 8.66221 10.7665 8.80981 10.778 8.96919C10.7894 9.12938 10.7172 9.27957 10.5631 9.41841C10.0406 9.95848 9.41626 10.3779 8.69006 10.6762C7.96384 10.9753 7.17936 11.1244 6.33948 11.1245V11.1235C5.52549 11.1235 4.75702 10.9817 4.03381 10.6987C3.31069 10.4157 2.68634 10.0311 2.16077 9.54438C1.63534 9.05777 1.2215 8.47035 0.91565 7.78169C0.609784 7.09292 0.457687 6.36056 0.457642 5.58637C0.457642 4.54971 0.717507 3.60868 1.23694 2.76118C1.75645 1.91363 2.46727 1.25219 3.36975 0.773874C4.2721 0.295655 5.26667 0.0571206 6.3551 0.0570771ZM39.8961 0.0131318C40.1012 -0.0218753 40.2585 0.0131612 40.3668 0.117624C40.4743 0.222126 40.5279 0.377137 40.528 0.581491V3.91841C41.1077 3.35545 41.8479 3.07274 42.7457 3.0727V3.07368H42.7448C43.7204 3.07368 44.5054 3.37709 45.1012 3.97895C45.697 4.58235 45.9947 5.37459 45.9948 6.35786V9.72895C45.9948 10.3972 46.0903 10.9408 45.4283 10.9409C45.2491 10.9554 44.6858 10.9467 44.4996 10.9467C44.3136 10.9467 44.1615 10.8843 44.0563 10.7768C43.951 10.6692 43.899 10.5239 43.899 10.3393V6.50923C43.899 6.00138 43.7493 5.59244 43.4528 5.28657C43.1552 4.97989 42.7509 4.82661 42.2428 4.82661C41.7349 4.82669 41.3152 4.98159 40.9987 5.29048C40.6831 5.59939 40.526 6.0067 40.526 6.50923V10.3393C40.526 10.5239 40.4749 10.67 40.3727 10.7768C40.2705 10.8842 40.1264 10.9379 39.942 10.9379H39.0416C38.8518 10.9379 38.7028 10.8843 38.5983 10.7768C38.493 10.6692 38.4401 10.5239 38.4401 10.3393V0.761179C38.4401 0.592781 38.4892 0.461595 38.5875 0.368601C38.6844 0.277087 38.8372 0.207545 39.0416 0.162546L39.8961 0.0131318ZM24.5768 7.36762C24.0794 7.36762 23.6792 7.48025 23.3756 7.70454C23.0729 7.92957 22.9215 8.226 22.9215 8.59516C22.9216 8.93885 23.0609 9.2146 23.3405 9.42426C23.6189 9.63405 23.993 9.73871 24.4606 9.73872C24.9793 9.73872 25.4292 9.60445 25.8121 9.33442C26.1951 9.06591 26.3873 8.74658 26.3873 8.37739V7.80903C25.771 7.5146 25.1672 7.36766 24.5768 7.36762ZM15.7887 4.77876C15.228 4.77876 14.6903 5.00197 14.2936 5.3979C13.8969 5.79383 13.6744 6.3323 13.6744 6.89301C13.6745 7.42152 13.8998 7.95584 14.2574 8.34712C14.294 8.38747 14.2972 8.44969 14.2623 8.49165L14.2037 8.56098C14.1412 8.63651 14.138 8.74644 14.2067 8.81587C14.5614 9.17432 15.205 9.43012 15.7877 9.43012C15.8715 9.43012 15.9561 9.42493 16.0407 9.41352C16.3946 9.36623 16.733 9.22142 17.0221 8.99262C17.3111 8.76385 17.5426 8.45753 17.6959 8.10298L17.6979 8.10102C17.8512 7.74631 17.9194 7.35464 17.8981 6.96333C17.8767 6.5722 17.7654 6.19345 17.5748 5.86176C17.3841 5.52992 17.121 5.25603 16.8082 5.06684C16.4956 4.87781 16.1455 4.77881 15.7887 4.77876Z" fill="#404B61"/></svg>
+            </div>
+          </div>
+          <div class="s2-eq-btn">
+            <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="9" width="3" height="6" rx="0.5" fill="#404b61"/><rect x="10.5" y="4" width="3" height="16" rx="0.5" fill="#404b61"/><rect x="17" y="7" width="3" height="10" rx="0.5" fill="#404b61"/></svg>
+          </div>
+          <button class="s2-voice-btn" id="voiceBtn">
+            <div class="s2-voice-icon">
+              <svg viewBox="0 0 20 20" fill="none"><path d="M10 2.5c-3.87 0-7 3.13-7 7v5.83c0 .92.75 1.67 1.67 1.67H7V11.17H4.67V9.5c0-2.95 2.38-5.33 5.33-5.33s5.33 2.38 5.33 5.33v1.67H13V17h2.33c.92 0 1.67-.75 1.67-1.67V9.5c0-3.87-3.13-7-7-7z" fill="#0056d2"/></svg>
+            </div>
+            <div class="s2-voice-info">
+              <div class="label">Customize voice</div>
+              <div class="sub">On</div>
+            </div>
+          </button>
+        </div>
+
+        <!-- Track Info -->
+        <div class="s2-track-info">
+          <div class="s2-track-title">The ins and outs of core data tools</div>
+          <div class="s2-track-subtitle">Understanding key data tools</div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="s2-progress-area">
+          <div class="s2-progress-bar-container" id="progressBar">
+            <div class="s2-progress-track">
+              <div class="s2-progress-fill" id="progressFill"></div>
+            </div>
+          </div>
+          <div class="s2-time-labels">
+            <span id="currentTime">0:00</span>
+            <span id="totalTime">0:00</span>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="s2-controls">
+          <button class="s2-speed-btn" id="speedBtn">1.2X</button>
+          <button class="s2-control-btn" id="rewindBtn" style="width:32px;height:32px">
+            <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 15.3333H11C10.7111 15.3333 10.4722 15.2389 10.2833 15.05C10.0944 14.8611 10 14.6222 10 14.3333C10 14.0444 10.0944 13.8056 10.2833 13.6167C10.4722 13.4278 10.7111 13.3333 11 13.3333H13C13.2889 13.3333 13.5278 13.4278 13.7167 13.6167C13.9056 13.8056 14 14.0444 14 14.3333V20.3333C14 20.6222 13.9056 20.8611 13.7167 21.05C13.5278 21.2389 13.2889 21.3333 13 21.3333C12.7111 21.3333 12.4722 21.2389 12.2833 21.05C12.0944 20.8611 12 20.6222 12 20.3333V15.3333ZM16.6667 21.3333C16.2889 21.3333 15.9722 21.2056 15.7167 20.95C15.4611 20.6944 15.3333 20.3778 15.3333 20V14.6667C15.3333 14.2889 15.4611 13.9722 15.7167 13.7167C15.9722 13.4611 16.2889 13.3333 16.6667 13.3333H19.3333C19.7111 13.3333 20.0278 13.4611 20.2833 13.7167C20.5389 13.9722 20.6667 14.2889 20.6667 14.6667V20C20.6667 20.3778 20.5389 20.6944 20.2833 20.95C20.0278 21.2056 19.7111 21.3333 19.3333 21.3333H16.6667ZM17.3333 19.3333H18.6667V15.3333H17.3333V19.3333ZM16 29.3333C14.3333 29.3333 12.7722 29.0167 11.3167 28.3833C9.86111 27.75 8.59444 26.8944 7.51667 25.8167C6.43889 24.7389 5.58333 23.4722 4.95 22.0167C4.31667 20.5611 4 19 4 17.3333C4 16.9556 4.12778 16.6389 4.38333 16.3833C4.63889 16.1278 4.95556 16 5.33333 16C5.71111 16 6.02778 16.1278 6.28333 16.3833C6.53889 16.6389 6.66667 16.9556 6.66667 17.3333C6.66667 19.9333 7.57222 22.1389 9.38333 23.95C11.1944 25.7611 13.4 26.6667 16 26.6667C18.6 26.6667 20.8056 25.7611 22.6167 23.95C24.4278 22.1389 25.3333 19.9333 25.3333 17.3333C25.3333 14.7333 24.4278 12.5278 22.6167 10.7167C20.8056 8.90555 18.6 8 16 8H15.8L16.9333 9.13333C17.2 9.4 17.3278 9.71111 17.3167 10.0667C17.3056 10.4222 17.1778 10.7333 16.9333 11C16.6667 11.2667 16.35 11.4056 15.9833 11.4167C15.6167 11.4278 15.3 11.3 15.0333 11.0333L11.6 7.6C11.3333 7.33333 11.2 7.02222 11.2 6.66667C11.2 6.31111 11.3333 6 11.6 5.73333L15.0333 2.3C15.3 2.03333 15.6167 1.90555 15.9833 1.91667C16.35 1.92778 16.6667 2.06667 16.9333 2.33333C17.1778 2.6 17.3056 2.91111 17.3167 3.26667C17.3278 3.62222 17.2 3.93333 16.9333 4.2L15.8 5.33333H16C17.6667 5.33333 19.2278 5.65 20.6833 6.28333C22.1389 6.91667 23.4056 7.77222 24.4833 8.85C25.5611 9.92778 26.4167 11.1944 27.05 12.65C27.6833 14.1056 28 15.6667 28 17.3333C28 19 27.6833 20.5611 27.05 22.0167C26.4167 23.4722 25.5611 24.7389 24.4833 25.8167C23.4056 26.8944 22.1389 27.75 20.6833 28.3833C19.2278 29.0167 17.6667 29.3333 16 29.3333Z" fill="black"/></svg>
+          </button>
+          <button class="s2-control-btn" id="playPauseBtn" style="width:40px;height:40px">
+            <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" id="pauseIcon"><path d="M26.6667 31.6667C25.75 31.6667 24.9653 31.3403 24.3125 30.6875C23.6597 30.0347 23.3333 29.25 23.3333 28.3333V11.6667C23.3333 10.75 23.6597 9.96528 24.3125 9.3125C24.9653 8.65972 25.75 8.33333 26.6667 8.33333C27.5833 8.33333 28.3681 8.65972 29.0208 9.3125C29.6736 9.96528 30 10.75 30 11.6667V28.3333C30 29.25 29.6736 30.0347 29.0208 30.6875C28.3681 31.3403 27.5833 31.6667 26.6667 31.6667ZM13.3333 31.6667C12.4167 31.6667 11.6319 31.3403 10.9792 30.6875C10.3264 30.0347 10 29.25 10 28.3333V11.6667C10 10.75 10.3264 9.96528 10.9792 9.3125C11.6319 8.65972 12.4167 8.33333 13.3333 8.33333C14.25 8.33333 15.0347 8.65972 15.6875 9.3125C16.3403 9.96528 16.6667 10.75 16.6667 11.6667V28.3333C16.6667 29.25 16.3403 30.0347 15.6875 30.6875C15.0347 31.3403 14.25 31.6667 13.3333 31.6667Z" fill="black"/></svg>
+            <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" id="playIcon" style="display:none"><path d="M13.3333 31.6667C12.7778 31.6667 12.2917 31.4722 11.875 31.0833C11.4583 30.6944 11.25 30.2222 11.25 29.6667V10.3333C11.25 9.77778 11.4583 9.30556 11.875 8.91667C12.2917 8.52778 12.7778 8.33333 13.3333 8.33333C13.5556 8.33333 13.7778 8.37222 14 8.45C14.2222 8.52778 14.4306 8.64722 14.625 8.80833L28.7917 18.475C29.125 18.7028 29.375 18.9861 29.5417 19.325C29.7083 19.6639 29.7917 20.0222 29.7917 20.4C29.7917 20.7778 29.7083 21.1306 29.5417 21.4583C29.375 21.7861 29.125 22.0583 28.7917 22.275L14.625 31.1917C14.4306 31.3528 14.2222 31.4722 14 31.55C13.7778 31.6278 13.5556 31.6667 13.3333 31.6667Z" fill="black"/></svg>
+          </button>
+          <button class="s2-control-btn" id="forwardBtn" style="width:32px;height:32px">
+            <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 29.3333C14.3333 29.3333 12.7722 29.0167 11.3167 28.3833C9.86111 27.75 8.59444 26.8944 7.51667 25.8167C6.43889 24.7389 5.58333 23.4722 4.95 22.0167C4.31667 20.5611 4 19 4 17.3333C4 15.6667 4.31667 14.1056 4.95 12.65C5.58333 11.1944 6.43889 9.92778 7.51667 8.85C8.59444 7.77222 9.86111 6.91667 11.3167 6.28333C12.7722 5.65 14.3333 5.33333 16 5.33333H16.2L15.0667 4.2C14.8 3.93333 14.6722 3.62222 14.6833 3.26667C14.6944 2.91111 14.8222 2.6 15.0667 2.33333C15.3333 2.06667 15.65 1.92778 16.0167 1.91667C16.3833 1.90555 16.7 2.03333 16.9667 2.3L20.4 5.73333C20.6667 6 20.8 6.31111 20.8 6.66667C20.8 7.02222 20.6667 7.33333 20.4 7.6L16.9667 11.0333C16.7 11.3 16.3833 11.4278 16.0167 11.4167C15.65 11.4056 15.3333 11.2667 15.0667 11C14.8222 10.7333 14.6944 10.4222 14.6833 10.0667C14.6722 9.71111 14.8 9.4 15.0667 9.13333L16.2 8H16C13.4 8 11.1944 8.90555 9.38333 10.7167C7.57222 12.5278 6.66667 14.7333 6.66667 17.3333C6.66667 19.9333 7.57222 22.1389 9.38333 23.95C11.1944 25.7611 13.4 26.6667 16 26.6667C18.6 26.6667 20.8056 25.7611 22.6167 23.95C24.4278 22.1389 25.3333 19.9333 25.3333 17.3333C25.3333 16.9556 25.4611 16.6389 25.7167 16.3833C25.9722 16.1278 26.2889 16 26.6667 16C27.0444 16 27.3611 16.1278 27.6167 16.3833C27.8722 16.6389 28 16.9556 28 17.3333C28 19 27.6833 20.5611 27.05 22.0167C26.4167 23.4722 25.5611 24.7389 24.4833 25.8167C23.4056 26.8944 22.1389 27.75 20.6833 28.3833C19.2278 29.0167 17.6667 29.3333 16 29.3333ZM12 15.3333H11C10.7111 15.3333 10.4722 15.2389 10.2833 15.05C10.0944 14.8611 10 14.6222 10 14.3333C10 14.0444 10.0944 13.8056 10.2833 13.6167C10.4722 13.4278 10.7111 13.3333 11 13.3333H13C13.2889 13.3333 13.5278 13.4278 13.7167 13.6167C13.9056 13.8056 14 14.0444 14 14.3333V20.3333C14 20.6222 13.9056 20.8611 13.7167 21.05C13.5278 21.2389 13.2889 21.3333 13 21.3333C12.7111 21.3333 12.4722 21.2389 12.2833 21.05C12.0944 20.8611 12 20.6222 12 20.3333V15.3333ZM16.6667 21.3333C16.2889 21.3333 15.9722 21.2056 15.7167 20.95C15.4611 20.6944 15.3333 20.3778 15.3333 20V14.6667C15.3333 14.2889 15.4611 13.9722 15.7167 13.7167C15.9722 13.4611 16.2889 13.3333 16.6667 13.3333H19.3333C19.7111 13.3333 20.0278 13.4611 20.2833 13.7167C20.5389 13.9722 20.6667 14.2889 20.6667 14.6667V20C20.6667 20.3778 20.5389 20.6944 20.2833 20.95C20.0278 21.2056 19.7111 21.3333 19.3333 21.3333H16.6667ZM17.3333 19.3333H18.6667V15.3333H17.3333V19.3333Z" fill="black"/></svg>
+          </button>
+          <button class="s2-timer-btn">
+            <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11.6667 3.5C11.3361 3.5 11.059 3.38819 10.8354 3.16458C10.6118 2.94097 10.5 2.66389 10.5 2.33333C10.5 2.00278 10.6118 1.72569 10.8354 1.50208C11.059 1.27847 11.3361 1.16667 11.6667 1.16667H16.3333C16.6639 1.16667 16.941 1.27847 17.1646 1.50208C17.3882 1.72569 17.5 2.00278 17.5 2.33333C17.5 2.66389 17.3882 2.94097 17.1646 3.16458C16.941 3.38819 16.6639 3.5 16.3333 3.5H11.6667ZM14 16.3333C14.3306 16.3333 14.6076 16.2215 14.8312 15.9979C15.0549 15.7743 15.1667 15.4972 15.1667 15.1667V10.5C15.1667 10.1694 15.0549 9.89236 14.8312 9.66875C14.6076 9.44514 14.3306 9.33333 14 9.33333C13.6694 9.33333 13.3924 9.44514 13.1687 9.66875C12.9451 9.89236 12.8333 10.1694 12.8333 10.5V15.1667C12.8333 15.4972 12.9451 15.7743 13.1687 15.9979C13.3924 16.2215 13.6694 16.3333 14 16.3333ZM14 25.6667C12.5611 25.6667 11.2049 25.3896 9.93125 24.8354C8.65764 24.2812 7.54444 23.5278 6.59167 22.575C5.63889 21.6222 4.88542 20.509 4.33125 19.2354C3.77708 17.9618 3.5 16.6056 3.5 15.1667C3.5 13.7278 3.77708 12.3715 4.33125 11.0979C4.88542 9.82431 5.63889 8.71111 6.59167 7.75833C7.54444 6.80556 8.65764 6.05208 9.93125 5.49792C11.2049 4.94375 12.5611 4.66667 14 4.66667C15.2056 4.66667 16.3625 4.86111 17.4708 5.25C18.5792 5.63889 19.6194 6.20278 20.5917 6.94167L21.4083 6.125C21.6222 5.91111 21.8944 5.80417 22.225 5.80417C22.5556 5.80417 22.8278 5.91111 23.0417 6.125C23.2556 6.33889 23.3625 6.61111 23.3625 6.94167C23.3625 7.27222 23.2556 7.54444 23.0417 7.75833L22.225 8.575C22.9639 9.54722 23.5278 10.5875 23.9167 11.6958C24.3056 12.8042 24.5 13.9611 24.5 15.1667C24.5 16.6056 24.2229 17.9618 23.6687 19.2354C23.1146 20.509 22.3611 21.6222 21.4083 22.575C20.4556 23.5278 19.3424 24.2812 18.0687 24.8354C16.7951 25.3896 15.4389 25.6667 14 25.6667ZM14 23.3333C16.2556 23.3333 18.1806 22.5361 19.775 20.9417C21.3694 19.3472 22.1667 17.4222 22.1667 15.1667C22.1667 12.9111 21.3694 10.9861 19.775 9.39167C18.1806 7.79722 16.2556 7 14 7C11.7444 7 9.81944 7.79722 8.225 9.39167C6.63056 10.9861 5.83333 12.9111 5.83333 15.1667C5.83333 17.4222 6.63056 19.3472 8.225 20.9417C9.81944 22.5361 11.7444 23.3333 14 23.3333Z" fill="black"/></svg>
+          </button>
+        </div>
+
+        <div class="s2-swipe-bar">
+          <div class="swipe-indicator"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================
+         VOICE SELECTION BOTTOM SHEET
+         ============================================ -->
+    <div class="voice-overlay" id="voiceOverlay">
+      <div class="voice-overlay-bg" id="voiceOverlayBg"></div>
+      <div class="voice-sheet" id="voiceSheet">
+        <!-- Drag handle -->
+        <div style="display:flex;justify-content:center;padding:8px 0 0">
+          <div style="width:36px;height:4px;background:#e0e0e0;border-radius:2px"></div>
+        </div>
+        <!-- Header -->
+        <div class="vs-header">
+          <button class="vs-back-btn" id="vsBackBtn">
+            <svg width="28" height="28" fill="none"><path d="M17.5 7.5l-7 6.5 7 6.5" stroke="#0f1114" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <span class="vs-title">Select a voiceover</span>
+        </div>
+
+        <!-- Tabs -->
+        <div class="vs-tabs-row">
+          <div class="vs-tabs">
+            <button class="vs-tab active">Library</button>
+            <button class="vs-tab">My voices</button>
+          </div>
+          <button class="vs-sort-btn">
+            Sort by trending
+            <svg width="16" height="16" fill="none"><path d="M3 4h10M5 8h6M7 12h2" stroke="#0f1114" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+
+        <!-- Voice List -->
+        <div class="vs-list" id="voiceList">
+          <!-- Auto-select -->
+          <div class="vs-voice-item" data-voice="auto-select">
+            <div class="vs-voice-left">
+              <div class="vs-avatar auto-select" data-preview="none">
+                <svg width="20" height="20" fill="none" class="play-icon"><path d="M10 1l1.5 2.8L15 4.5l-2.5 2.3.6 3.2L10 8.5 6.9 10l.6-3.2L5 4.5l3.5-.7L10 1z" fill="rgba(255,255,255,0.8)"/></svg>
+                <svg width="16" height="16" fill="none" class="pause-icon" style="display:none"><rect x="3" y="3" width="4" height="10" rx="1" fill="rgba(255,255,255,0.8)"/><rect x="9" y="3" width="4" height="10" rx="1" fill="rgba(255,255,255,0.8)"/></svg>
+              </div>
+              <div class="vs-voice-meta">
+                <div class="vs-voice-name-row">
+                  <span class="vs-voice-name">Auto-select</span>
+                  <span class="vs-badge">Default</span>
+                </div>
+                <div class="vs-voice-desc">AI auto-select will be applied</div>
+              </div>
+            </div>
+            <div class="vs-voice-right">
+              <span class="vs-lang">English (US)</span>
+              <button class="vs-more-btn">
+                <svg width="16" height="16" fill="none"><circle cx="3" cy="8" r="1.5" fill="#0f1114"/><circle cx="8" cy="8" r="1.5" fill="#0f1114"/><circle cx="13" cy="8" r="1.5" fill="#0f1114"/></svg>
+              </button>
+            </div>
+            <div class="vs-check">
+              <svg width="12" height="12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+          </div>
+
+          <!-- Mike -->
+          <div class="vs-voice-item" data-voice="mike">
+            <div class="vs-voice-left">
+              <div class="vs-avatar mike" data-preview="voice%20preview.MP3">
+                <svg width="16" height="16" fill="none" class="play-icon"><path d="M4 2v12l10-6-10-6z" fill="rgba(255,255,255,0.85)"/></svg>
+                <svg width="16" height="16" fill="none" class="pause-icon" style="display:none"><rect x="2" y="2" width="4.5" height="12" rx="1" fill="rgba(255,255,255,0.85)"/><rect x="9.5" y="2" width="4.5" height="12" rx="1" fill="rgba(255,255,255,0.85)"/></svg>
+              </div>
+              <div class="vs-voice-meta">
+                <div class="vs-voice-name-row">
+                  <span class="vs-voice-name">Mike</span>
+                </div>
+                <div class="vs-voice-desc">Male · Educational explainers</div>
+              </div>
+            </div>
+            <div class="vs-voice-right">
+              <span class="vs-lang">English (US)</span>
+              <button class="vs-more-btn">
+                <svg width="16" height="16" fill="none"><circle cx="3" cy="8" r="1.5" fill="#0f1114"/><circle cx="8" cy="8" r="1.5" fill="#0f1114"/><circle cx="13" cy="8" r="1.5" fill="#0f1114"/></svg>
+              </button>
+            </div>
+            <div class="vs-check">
+              <svg width="12" height="12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+          </div>
+
+          <!-- Mara -->
+          <div class="vs-voice-item selected" data-voice="mara">
+            <div class="vs-voice-left">
+              <div class="vs-avatar mara" data-preview="none">
+                <svg width="16" height="16" fill="none" class="play-icon"><path d="M4 2v12l10-6-10-6z" fill="rgba(255,255,255,0.85)"/></svg>
+                <svg width="16" height="16" fill="none" class="pause-icon" style="display:none"><rect x="2" y="2" width="4.5" height="12" rx="1" fill="rgba(255,255,255,0.85)"/><rect x="9.5" y="2" width="4.5" height="12" rx="1" fill="rgba(255,255,255,0.85)"/></svg>
+              </div>
+              <div class="vs-voice-meta">
+                <div class="vs-voice-name-row">
+                  <span class="vs-voice-name">Mara</span>
+                </div>
+                <div class="vs-voice-desc">Female · Thought leadership</div>
+              </div>
+            </div>
+            <div class="vs-voice-right">
+              <span class="vs-lang">English (US)</span>
+              <button class="vs-more-btn">
+                <svg width="16" height="16" fill="none"><circle cx="3" cy="8" r="1.5" fill="#0f1114"/><circle cx="8" cy="8" r="1.5" fill="#0f1114"/><circle cx="13" cy="8" r="1.5" fill="#0f1114"/></svg>
+              </button>
+            </div>
+            <div class="vs-check">
+              <svg width="12" height="12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+          </div>
+
+          <!-- Daniel -->
+          <div class="vs-voice-item" data-voice="daniel">
+            <div class="vs-voice-left">
+              <div class="vs-avatar daniel" data-preview="none">
+                <svg width="16" height="16" fill="none" class="play-icon"><path d="M4 2v12l10-6-10-6z" fill="rgba(255,255,255,0.85)"/></svg>
+                <svg width="16" height="16" fill="none" class="pause-icon" style="display:none"><rect x="2" y="2" width="4.5" height="12" rx="1" fill="rgba(255,255,255,0.85)"/><rect x="9.5" y="2" width="4.5" height="12" rx="1" fill="rgba(255,255,255,0.85)"/></svg>
+              </div>
+              <div class="vs-voice-meta">
+                <div class="vs-voice-name-row">
+                  <span class="vs-voice-name">Daniel</span>
+                </div>
+                <div class="vs-voice-desc">Male · Thought leadership</div>
+              </div>
+            </div>
+            <div class="vs-voice-right">
+              <span class="vs-lang">English (US)</span>
+              <button class="vs-more-btn">
+                <svg width="16" height="16" fill="none"><circle cx="3" cy="8" r="1.5" fill="#0f1114"/><circle cx="8" cy="8" r="1.5" fill="#0f1114"/><circle cx="13" cy="8" r="1.5" fill="#0f1114"/></svg>
+              </button>
+            </div>
+            <div class="vs-check">
+              <svg width="12" height="12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+          </div>
+
+          <!-- Emma -->
+          <div class="vs-voice-item" data-voice="emma">
+            <div class="vs-voice-left">
+              <div class="vs-avatar emma" data-preview="none">
+                <svg width="16" height="16" fill="none" class="play-icon"><path d="M4 2v12l10-6-10-6z" fill="rgba(255,255,255,0.85)"/></svg>
+                <svg width="16" height="16" fill="none" class="pause-icon" style="display:none"><rect x="2" y="2" width="4.5" height="12" rx="1" fill="rgba(255,255,255,0.85)"/><rect x="9.5" y="2" width="4.5" height="12" rx="1" fill="rgba(255,255,255,0.85)"/></svg>
+              </div>
+              <div class="vs-voice-meta">
+                <div class="vs-voice-name-row">
+                  <span class="vs-voice-name">Emma</span>
+                </div>
+                <div class="vs-voice-desc">Female · Educational explainers</div>
+              </div>
+            </div>
+            <div class="vs-voice-right">
+              <span class="vs-lang">English (US)</span>
+              <button class="vs-more-btn">
+                <svg width="16" height="16" fill="none"><circle cx="3" cy="8" r="1.5" fill="#0f1114"/><circle cx="8" cy="8" r="1.5" fill="#0f1114"/><circle cx="13" cy="8" r="1.5" fill="#0f1114"/></svg>
+              </button>
+            </div>
+            <div class="vs-check">
+              <svg width="12" height="12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Apply Button -->
+        <div class="vs-apply-area">
+          <button class="vs-apply-btn" id="vsApplyBtn">Apply</button>
+        </div>
+        <div class="vs-bottom-pad"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ================================================
+    // Audio Engine
+    // ================================================
+    const mainAudio = new Audio();
+    const previewAudio = new Audio();
+    let currentVoice = 'mara';
+    let selectedVoice = 'mara';
+    let isPlaying = false;
+    let wasPlayingBeforePreview = false;
+    let previewingVoice = null;
+
+    const voiceAudioMap = {
+      default: 'voice%20mara.MP3',
+      mara: 'voice%20mara.MP3',
+      leo: 'voice%20leo.MP3',
+    };
+
+    mainAudio.playbackRate = 1.2;
+
+    function formatTime(seconds) {
+      if (isNaN(seconds)) return '0:00';
+      const m = Math.floor(seconds / 60);
+      const s = Math.floor(seconds % 60);
+      return m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    // ================================================
+    // DOM References
+    // ================================================
+    const screen1 = document.getElementById('screen1');
+    const screen2 = document.getElementById('screen2');
+    const voiceOverlay = document.getElementById('voiceOverlay');
+    const playBtn = document.getElementById('playBtn');
+    const backToScreen1 = document.getElementById('backToScreen1');
+    const voiceBtn = document.getElementById('voiceBtn');
+    const vsBackBtn = document.getElementById('vsBackBtn');
+    const vsApplyBtn = document.getElementById('vsApplyBtn');
+    const voiceOverlayBg = document.getElementById('voiceOverlayBg');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const pauseIcon = document.getElementById('pauseIcon');
+    const playIcon = document.getElementById('playIcon');
+    const rewindBtn = document.getElementById('rewindBtn');
+    const forwardBtn = document.getElementById('forwardBtn');
+    const progressFill = document.getElementById('progressFill');
+    const currentTimeEl = document.getElementById('currentTime');
+    const totalTimeEl = document.getElementById('totalTime');
+    const progressBar = document.getElementById('progressBar');
+    const voiceList = document.getElementById('voiceList');
+
+    // ================================================
+    // Screen Navigation
+    // ================================================
+    function goToScreen2() {
+      screen1.classList.remove('active');
+      screen1.classList.add('off-left');
+      screen2.classList.remove('off-right');
+      screen2.classList.add('active');
+      startMainPlayback(voiceAudioMap.default);
+    }
+
+    function goToScreen1() {
+      mainAudio.pause();
+      previewAudio.pause();
+      isPlaying = false;
+      currentVoice = 'mara';
+      selectedVoice = 'mara';
+      updatePlayPauseUI();
+      progressFill.style.width = '0%';
+      currentTimeEl.textContent = '0:00';
+      totalTimeEl.textContent = '0:00';
+      const voiceLabel = document.querySelector('.s2-voice-info .label');
+      const voiceSub = document.querySelector('.s2-voice-info .sub');
+      voiceLabel.textContent = 'Customize voice';
+      voiceSub.textContent = 'On';
+      screen2.classList.remove('active');
+      screen2.classList.add('off-right');
+      screen1.classList.remove('off-left');
+      screen1.classList.add('active');
+    }
+
+    playBtn.addEventListener('click', goToScreen2);
+    backToScreen1.addEventListener('click', goToScreen1);
+
+    // ================================================
+    // Main Audio Playback
+    // ================================================
+    function startMainPlayback(src) {
+      mainAudio.src = src;
+      mainAudio.load();
+      mainAudio.play().then(() => {
+        isPlaying = true;
+        updatePlayPauseUI();
+      }).catch(() => {
+        isPlaying = false;
+        updatePlayPauseUI();
+      });
+    }
+
+    function updatePlayPauseUI() {
+      if (isPlaying) {
+        pauseIcon.style.display = '';
+        playIcon.style.display = 'none';
+      } else {
+        pauseIcon.style.display = 'none';
+        playIcon.style.display = '';
+      }
+    }
+
+    playPauseBtn.addEventListener('click', () => {
+      if (isPlaying) {
+        mainAudio.pause();
+        isPlaying = false;
+      } else {
+        mainAudio.play().then(() => { isPlaying = true; updatePlayPauseUI(); });
+      }
+      updatePlayPauseUI();
+    });
+
+    rewindBtn.addEventListener('click', () => {
+      mainAudio.currentTime = Math.max(0, mainAudio.currentTime - 10);
+    });
+
+    forwardBtn.addEventListener('click', () => {
+      mainAudio.currentTime = Math.min(mainAudio.duration || 0, mainAudio.currentTime + 10);
+    });
+
+    mainAudio.addEventListener('timeupdate', () => {
+      if (mainAudio.duration) {
+        const pct = (mainAudio.currentTime / mainAudio.duration) * 100;
+        progressFill.style.width = pct + '%';
+        currentTimeEl.textContent = formatTime(mainAudio.currentTime);
+        totalTimeEl.textContent = formatTime(mainAudio.duration);
+      }
+    });
+
+    mainAudio.addEventListener('loadedmetadata', () => {
+      totalTimeEl.textContent = formatTime(mainAudio.duration);
+    });
+
+    mainAudio.addEventListener('ended', () => {
+      isPlaying = false;
+      updatePlayPauseUI();
+    });
+
+    progressBar.addEventListener('click', (e) => {
+      if (!mainAudio.duration) return;
+      const rect = progressBar.getBoundingClientRect();
+      const pct = (e.clientX - rect.left) / rect.width;
+      mainAudio.currentTime = pct * mainAudio.duration;
+    });
+
+    // Speed button
+    const speeds = [1, 1.2, 1.5, 2];
+    let speedIdx = 1;
+    const speedBtn = document.getElementById('speedBtn');
+    speedBtn.addEventListener('click', () => {
+      speedIdx = (speedIdx + 1) % speeds.length;
+      mainAudio.playbackRate = speeds[speedIdx];
+      speedBtn.textContent = speeds[speedIdx] + 'X';
+    });
+
+    // ================================================
+    // Voice Selection Sheet
+    // ================================================
+    function openVoiceSheet() {
+      selectedVoice = currentVoice;
+      voiceItems.forEach(v => {
+        v.classList.toggle('selected', v.dataset.voice === currentVoice);
+      });
+      voiceOverlay.classList.add('active');
+    }
+    function closeVoiceSheet() {
+      previewAudio.pause();
+      const shouldResume = wasPlayingBeforePreview && previewingVoice !== null;
+      stopAllPreviews();
+      wasPlayingBeforePreview = false;
+      voiceOverlay.classList.remove('active');
+      if (shouldResume) {
+        mainAudio.play().then(() => { isPlaying = true; updatePlayPauseUI(); });
+      }
+    }
+
+    voiceBtn.addEventListener('click', openVoiceSheet);
+    vsBackBtn.addEventListener('click', closeVoiceSheet);
+    voiceOverlayBg.addEventListener('click', closeVoiceSheet);
+
+    // Voice selection
+    const voiceItems = voiceList.querySelectorAll('.vs-voice-item');
+    voiceItems.forEach(item => {
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.vs-avatar') || e.target.closest('.vs-more-btn')) return;
+        voiceItems.forEach(v => v.classList.remove('selected'));
+        item.classList.add('selected');
+        selectedVoice = item.dataset.voice;
+      });
+    });
+
+    // Voice preview
+    const avatars = voiceList.querySelectorAll('.vs-avatar');
+    avatars.forEach(avatar => {
+      avatar.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const previewSrc = avatar.dataset.preview;
+        if (previewSrc === 'none') return;
+
+        if (previewingVoice === avatar) {
+          previewAudio.pause();
+          stopAllPreviews();
+          if (wasPlayingBeforePreview) {
+            mainAudio.play().then(() => { isPlaying = true; updatePlayPauseUI(); });
+          }
+          return;
+        }
+
+        stopAllPreviews();
+        wasPlayingBeforePreview = isPlaying;
+        if (isPlaying) {
+          mainAudio.pause();
+          isPlaying = false;
+          updatePlayPauseUI();
+        }
+
+        previewAudio.src = previewSrc;
+        previewAudio.load();
+        previewAudio.play().then(() => {
+          avatar.classList.add('playing');
+          previewingVoice = avatar;
+        });
+      });
+    });
+
+    previewAudio.addEventListener('ended', () => {
+      stopAllPreviews();
+      if (wasPlayingBeforePreview) {
+        mainAudio.play().then(() => { isPlaying = true; updatePlayPauseUI(); });
+      }
+    });
+
+    function stopAllPreviews() {
+      avatars.forEach(a => a.classList.remove('playing'));
+      previewingVoice = null;
+    }
+
+    // Apply button
+    vsApplyBtn.addEventListener('click', () => {
+      previewAudio.pause();
+      stopAllPreviews();
+      wasPlayingBeforePreview = false;
+      currentVoice = selectedVoice;
+
+      const voiceLabel = document.querySelector('.s2-voice-info .label');
+      const voiceSub = document.querySelector('.s2-voice-info .sub');
+      if (currentVoice === 'mara') {
+        voiceLabel.textContent = 'Customize voice';
+        voiceSub.textContent = 'On';
+      } else {
+        const selectedItem = document.querySelector('.vs-voice-item.selected');
+        const selectedName = selectedItem ? selectedItem.querySelector('.vs-voice-name').textContent : '';
+        voiceLabel.textContent = selectedName + ' voice';
+        voiceSub.textContent = 'Active';
+      }
+
+      closeVoiceSheet();
+
+      setTimeout(() => {
+        let audioSrc;
+        if (currentVoice === 'mara') {
+          audioSrc = voiceAudioMap.mara;
+        } else {
+          audioSrc = voiceAudioMap.leo;
+        }
+        startMainPlayback(audioSrc);
+      }, 350);
+    });
+
+    // Transcript text variations for simulated animation
+    const transcriptSegments = [
+      { active: "We'll start ", highlight: "with a closer look", faded: "at this example spreadsheet." },
+      { active: "We'll start with a closer look ", highlight: "at this example", faded: "spreadsheet." },
+      { active: "We'll start with a closer look at this ", highlight: "example spreadsheet.", faded: "" },
+      { active: "", highlight: "We'll start", faded: "with a closer look at this example spreadsheet." },
+      { active: "We'll start ", highlight: "with a closer", faded: "look at this example spreadsheet." },
+    ];
+    let segIdx = 0;
+    const transcriptActive = document.getElementById('transcriptActive');
+    const transcriptHighlight = document.getElementById('transcriptHighlight');
+    const transcriptFaded = document.getElementById('transcriptFaded');
+
+    setInterval(() => {
+      if (!isPlaying) return;
+      segIdx = (segIdx + 1) % transcriptSegments.length;
+      const seg = transcriptSegments[segIdx];
+      transcriptActive.textContent = seg.active;
+      transcriptHighlight.textContent = seg.highlight;
+      transcriptFaded.textContent = seg.faded;
+    }, 3000);
+  </script>
+</body>
+</html>
